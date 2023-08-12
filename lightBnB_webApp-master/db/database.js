@@ -1,4 +1,4 @@
-//const properties = require('./json/properties.json');
+const properties = require('./json/properties.json');
 const users = require('./json/users.json');
 
 //Connecting to the lightbnb database
@@ -18,13 +18,14 @@ const pool = new Pool({
  */
 const getUserWithEmail = function (email) {
   // let resolvedUser = null;
-  let query = `SELECT id as userId,name,email,password 
+  let query = `SELECT * 
 		FROM users
 		WHERE users.email = $1`;
   let options = [email];
   return pool
     .query(query, options)
     .then((result) => {
+      console.log(result.rows[0]);
       return result.rows[0];
     })
     .catch((err) => {
@@ -40,11 +41,12 @@ const getUserWithEmail = function (email) {
 const getUserWithId = function (id) {
   let query = `SELECT * 
 		FROM users
-		WHERE users.id = $1`;
+		WHERE id = $1`;
   let options = [id];
   return pool
     .query(query, options)
     .then((result) => {
+      console.log('it ran');
       console.log(result.rows);
       return result.rows[0];
     })
@@ -59,12 +61,13 @@ const getUserWithId = function (id) {
  * @return {Promise<{}>} A promise to the user.
  */
 const addUser = function (user) {
-  let query = `INSERT INTO users(name,email,password) VALUES ($1,$2,$3) RETURNING *`;
+  let query = `INSERT INTO users(name,email,password) VALUES ($1,$2,$3) RETURNING *;`;
   let options = [user.name, user.email, user.password];
   return pool
     .query(query, options)
     .then((result) => {
       console.log(result);
+      return result.rows[0];
     })
     .catch((err) => {
       console.log('err: ', err);
@@ -79,7 +82,26 @@ const addUser = function (user) {
  * @return {Promise<[{}]>} A promise to the reservations.
  */
 const getAllReservations = function (guest_id, limit = 10) {
-  return getAllProperties(null, 2);
+  //return getAllProperties(null, 2);
+  let query = `SELECT reservations.id, title, start_date, cost_per_night, avg(property_reviews.rating) as average_rating
+FROM reservations
+JOIN properties ON reservations.property_id = properties.id
+JOIN property_reviews ON properties.id = property_reviews.property_id
+WHERE reservations.guest_id = $1
+GROUP BY properties.id,reservations.id
+ORDER BY start_date
+LIMIT $2
+`;
+  let options = [guest_id, limit];
+  return pool
+    .query(query, options)
+    .then((result) => {
+      console.log(result);
+      return result.rows;
+    })
+    .catch((err) => {
+      console.log(err.message);
+    });
 };
 
 /// Properties
@@ -106,11 +128,7 @@ const getAllProperties = function (options, limit = 10) {
       console.log(err.message);
     });
 
-  // const limitedProperties = {};
-  // for (let i = 1; i <= limit; i++) {
-  //   limitedProperties[i] = properties[i];
-  // }
-  // return Promise.resolve(limitedProperties);
+ 
 };
 
 /**
