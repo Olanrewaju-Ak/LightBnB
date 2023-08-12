@@ -46,8 +46,6 @@ const getUserWithId = function (id) {
   return pool
     .query(query, options)
     .then((result) => {
-      console.log('it ran');
-      console.log(result.rows);
       return result.rows[0];
     })
     .catch((err) => {
@@ -66,7 +64,6 @@ const addUser = function (user) {
   return pool
     .query(query, options)
     .then((result) => {
-      console.log(result);
       return result.rows[0];
     })
     .catch((err) => {
@@ -96,7 +93,6 @@ LIMIT $2
   return pool
     .query(query, options)
     .then((result) => {
-      console.log(result);
       return result.rows;
     })
     .catch((err) => {
@@ -114,21 +110,52 @@ LIMIT $2
  */
 const getAllProperties = function (options, limit = 10) {
   /*<------------------ ADDING DATABASE QUERY    ------------------------>*/
+  let queryParams = [];
+  let queryString = `SELECT properties.id as id,title,cost_per_night,AVG(property_reviews.rating) as average_rating FROM properties JOIN property_reviews ON properties.id= property_id`;
+
+  //checking if the filter includes city
+  if (options.city) {
+    //add the city to the queryParams
+    queryParams.push(`%${options.city}%`);
+    //add the city query to the queryString
+    queryString += ` WHERE city LIKE $${queryParams.length}`;
+  }
+
+  if (options.owner_id) {
+    queryParams.push(`${options.city}`);
+    queryString += ` AND owner_id = $${queryParams.length}`;
+  }
+  if (options.minimum_price_per_night) {
+    queryParams.push(`${options.minimum_price_per_night}`);
+    queryString += ` AND cost_per_night >= $${queryParams.length}`;
+  }
+  if (options.maximum_price_per_night) {
+    queryParams.push(`${options.maximum_price_per_night}`);
+    queryString += ` AND cost_per_night <= $${queryParams.length}`;
+  }
+  if (options.minimum_rating) {
+    queryParams.push(`${options.minimum_rating}`);
+    queryString += ` AND rating >= $${queryParams.length}`;
+  }
+
+  queryParams.push(limit);
+  queryString += `
+  GROUP BY properties.id
+  ORDER BY cost_per_night
+  LIMIT $${queryParams.length};
+  `;
+
+  console.log(queryString, queryParams);
+
   return pool
-    .query(
-      `SELECT *
-		FROM properties
-		LIMIT $1`,
-      [limit]
-    )
+    .query(queryString, queryParams)
     .then((result) => {
+     
       return result.rows;
     })
     .catch((err) => {
       console.log(err.message);
     });
-
- 
 };
 
 /**
